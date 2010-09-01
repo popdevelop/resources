@@ -1,11 +1,11 @@
 import math
 
 def uniq(seq, idfun=None):
-"""
-Return the unique list of dicts.
-Call with uniq(o, idfun=operator.itemgetter("a")) to do it based on an item in
-the dictionary
-"""
+    """
+    Return the unique list of dicts.
+    Call with uniq(o, idfun=operator.itemgetter("a")) to do it based on an item in
+    the dictionary
+    """
     if idfun is None:
         def idfun(x): return x
     seen = {}
