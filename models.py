@@ -6,8 +6,8 @@ from django.db.models import Avg, Max, Min, Count
 
 class Stop(models.Model):
     name = models.CharField()
-    longitude = models.FloatField()
-    latitude = models.FloatField()
+    lon = models.FloatField()
+    lat = models.FloatField()
 
     def __unicode__(self):
         return self.name

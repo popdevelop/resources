@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from django.forms.models import model_to_dict
+from models import Stop
 import database
 import logging
 import os.path
@@ -53,7 +55,10 @@ class MainHandler(BaseHandler):
 class StopsHandler(BaseHandler):
     @tornado.web.authenticated
     def get(self):
-        json = tornado.escape.json_encode([1, 2])
+        stops = [model_to_dict(s) for s in \
+                     [Stop(name="Davidshall", lon=13.5, lat=55.13),
+                      Stop(name="Scaniabadet", lon=12.5, lat=56.13)]]
+        json = tornado.escape.json_encode(stops)
         self.set_header("Content-Length", len(json))
         self.set_header("Content-Type", "text/javascript")
         self.write(json)
