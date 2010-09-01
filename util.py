@@ -1,5 +1,25 @@
 import math
 
+def uniq(seq, idfun=None):
+"""
+Return the unique list of dicts.
+Call with uniq(o, idfun=operator.itemgetter("a")) to do it based on an item in
+the dictionary
+"""
+    if idfun is None:
+        def idfun(x): return x
+    seen = {}
+    result = []
+    for item in seq:
+        marker = idfun(item)
+        # in old Python versions:
+        # if seen.has_key(marker)
+        # but in new ones:
+        if marker in seen: continue
+        seen[marker] = 1
+        result.append(item)
+    return result
+
 def atanh(x):
     """arctangent hyperbolicus"""
     return 1.0/2.0*math.log((1.0 + x)/(1.0 -x))
