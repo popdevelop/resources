@@ -8,7 +8,7 @@ class Database():
         self.connection = sqlite3.connect(DB_FILE)
         self.cursor = self.connection.cursor()
 
-        self.add_statement('''create table if not exists stops (id INTEGER PRIMARY KEY, name STRING, lon FLOAT, lat FLOAT)''')
+        self.add_statement('''create table if not exists stations (id INTEGER PRIMARY KEY, realid INTEGER, name STRING, lon FLOAT, lat FLOAT)''')
 
         self.commit()
 
