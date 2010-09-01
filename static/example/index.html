@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+<style type="text/css">
+  html { height: 100% }
+  body { 
+      padding: 0px;
+      width: 960px;
+      height: 480px;
+      margin: 0 auto;
+  }
+  form#search {
+      padding: 30px 0;
+  }
+  form#search input {
+      padding: 5px;
+      font-size: 24px;
+  }
+  ul#stops li {
+      display: inline-block;
+  }
+  #map_canvas { 
+      height: 100%;
+      weight: 100%;
+  }
+</style>
+
+<script type="text/html" id="stopItem">
+    <li>
+        ${name}
+    </li>
+</script>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script> 
+<script type="text/javascript" src="js/jquery.jsonp.min.js"></script>
+<script type="text/javascript" src="js/jquery.tmpl.js"></script>
+<script type="text/javascript"
+    src="http://maps.google.com/maps/api/js?sensor=false">
+</script>
+<script type="text/javascript">
+
+var Config =  {
+    server: 'http://localhost:8888',
+};
+
+var Cmd = {
+    getStops: 'stops'
+};
+
+var GMap = {
+    $canvas: false,
+    options: {
+        zoom: 10,
+        mapTypeId: google.maps.MapTypeId.ROADMAP,
+        lat: -34.397,
+        lon: 150.644
+    },
+    init: function() {
+        GMap.$canvas = $('#map_canvas');
+        if(!GMap.$canvas) {
+            throw("[GMap init] Canvas not found");
+        }
+        GMap.options.center = new google.maps.LatLng(GMap.options.lat, GMap.options.lon);
+        GMap.map = new google.maps.Map(GMap.$canvas.get(0), GMap.options);
+    },
+    set: function(options) {
+        if(typeof(options) != 'object') {
+            throw("[GMap draw] Invalid options");
+        }
+        $.extend(GMap.options, options);
+        GMap.options.center = new google.maps.LatLng(GMap.options.lat, GMap.options.lon);
+        GMap.map.setCenter(GMap.options.center);
+        
+    }
+};
+
+$(document).ready(function() {
+    GMap.init();
+    setTimeout(function() {
+        GMap.set({lat: 55.13,lon: 13.5});
+    }, 5000);
+    $("#stops li").live("click", function(e) {
+        var item = $.tmplItem(e.target);
+        GMap.set({lat: item.data.lat, lon: item.data.lon});
+    });
+
+    $.jsonp({
+        url: Config.server + "/" + Cmd.getStops,
+        success: function(json) {
+            $("#stops").html($('#stopItem').tmpl(json)) ;
+        },
+        callbackParameter: 'callback',
+        timeout: 5000
+    });
+});
+
+</script>
+</head>
+<body>
+  <form id="search">
+    <input type="text"> 
+    <input type="text">
+  </form>
+  <ul id="stops">
+  </ul>
+  <div id="map_canvas"></div>
+</body>
+</html>
