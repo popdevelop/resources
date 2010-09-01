@@ -1,33 +1,19 @@
 #!/usr/bin/env python
-#
-# Copyright 2009 Facebook
-#
-# Licensed under the Apache License, Version 2.0 (the "License"); you may
-# not use this file except in compliance with the License. You may obtain
-# a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-# License for the specific language governing permissions and limitations
-# under the License.
 
+import database
 import logging
+import os.path
 import tornado.auth
 import tornado.escape
 import tornado.httpserver
 import tornado.ioloop
 import tornado.options
 import tornado.web
-import os.path
 import uuid
 
 from tornado.options import define, options
 
 define("port", default=8888, help="run on the given port", type=int)
-
 
 class Application(tornado.web.Application):
     def __init__(self):
@@ -37,9 +23,12 @@ class Application(tornado.web.Application):
             (r"/auth/logout", AuthLogoutHandler),
             (r"/a/message/new", MessageNewHandler),
             (r"/a/message/updates", MessageUpdatesHandler),
+            (r"/stops", StopsHandler),
         ]
         settings = dict(
-            cookie_secret="43oETzKXQAGaYdkL5gEmGeJJFuYh7EQnp2XdTP1o/Vo=",
+            cookie_secret="61oETzKXnQAGaYdkL5gEmGeJJFuYh7EQnp2XdTP1o/Vo=",
+            twitter_consumer_key = "39DOr5gcrYUI6Hga71sgIg",
+            twitter_consumer_secret = "sOEV2NW00y6RX5aKzVfFslLjavKRZfLaUS6as1OwvE",
             login_url="/auth/login",
             template_path=os.path.join(os.path.dirname(__file__), "templates"),
             static_path=os.path.join(os.path.dirname(__file__), "static"),
@@ -59,6 +48,15 @@ class MainHandler(BaseHandler):
     @tornado.web.authenticated
     def get(self):
         self.render("index.html", messages=MessageMixin.cache)
+
+
+class StopsHandler(BaseHandler):
+    @tornado.web.authenticated
+    def get(self):
+        json = tornado.escape.json_encode([1, 2])
+        self.set_header("Content-Length", len(json))
+        self.set_header("Content-Type", "text/javascript")
+        self.write(json)
 
 
 class MessageMixin(object):
@@ -131,7 +129,7 @@ class AuthLoginHandler(BaseHandler, tornado.auth.GoogleMixin):
             self.get_authenticated_user(self.async_callback(self._on_auth))
             return
         self.authenticate_redirect(ax_attrs=["name"])
-    
+
     def _on_auth(self, user):
         if not user:
             raise tornado.web.HTTPError(500, "Google auth failed")
@@ -146,6 +144,7 @@ class AuthLogoutHandler(BaseHandler):
 
 
 def main():
+    database.Database()
     tornado.options.parse_command_line()
     http_server = tornado.httpserver.HTTPServer(Application())
     http_server.listen(options.port)
