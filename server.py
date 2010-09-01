@@ -29,6 +29,7 @@ class Application(tornado.web.Application):
             (r"/a/message/new", MessageNewHandler),
             (r"/a/message/updates", MessageUpdatesHandler),
             (r"/neareststations", NearestStationsHandler),
+            (r"/querystation", QueryStationHandler),
         ]
         settings = dict(
             cookie_secret="61oETzKXnQAGaYdkL5gEmGeJJFuYh7EQnp2XdTP1o/Vo=",
@@ -63,7 +64,6 @@ class NearestStationsHandler(BaseHandler):
                              map(lambda a: a[0], self.request.arguments.values())))
         client = tornado.httpclient.AsyncHTTPClient()
         (x, y) = util.WGS84_to_RT90(float(self.args["lat"]), float(self.args["lon"]))
-        print "http://www.labs.skanetrafiken.se/v2.2/neareststation.asp?x=%s&y=%s&R=1000" % (x, y)
         client.fetch("http://www.labs.skanetrafiken.se/v2.2/"
                      "neareststation.asp?x=%s&y=%s&R=1000" % (x, y),
                      callback=self.async_callback(self.on_response))
@@ -79,6 +79,45 @@ class NearestStationsHandler(BaseHandler):
         stations = []
         ns = "http://www.etis.fskab.se/v1.0/ETISws"
         for station in e.find('.//{%s}NearestStopAreas' % ns):
+            s = Station()
+            s.name = station.find('.//{%s}Name' % ns).text
+            s.key = station.find('.//{%s}Id' % ns).text
+            X = int(station.find('.//{%s}X' % ns).text)
+            Y = int(station.find('.//{%s}Y' % ns).text)
+            (s.lat, s.lon) = util.RT90_to_WGS84(X, Y)
+            stations.append(s)
+
+        stops = [model_to_dict(s) for s in stations]
+        json = tornado.escape.json_encode(stops)
+        if "callback" in self.args:
+            json = "%s(%s)" % (self.args["callback"], json)
+        self.set_header("Content-Length", len(json))
+        self.set_header("Content-Type", "application/json")
+        self.write(json)
+        self.finish()
+
+
+class QueryStationHandler(BaseHandler):
+    @tornado.web.authenticated
+    @tornado.web.asynchronous
+    def get(self):
+        self.args = dict(zip(self.request.arguments.keys(),
+                             map(lambda a: a[0], self.request.arguments.values())))
+        client = tornado.httpclient.AsyncHTTPClient()
+        client.fetch("http://www.labs.skanetrafiken.se/v2.2/querystation.asp?inpPointfr=%s" % self.args["q"],
+                     callback=self.async_callback(self.on_response))
+
+    def on_response(self, response):
+        if response.error: raise tornado.web.HTTPError(500)
+
+        try:
+            e = ET.XML(response.body)
+        except Exception as e:
+            raise tornado.web.HTTPError(500)
+
+        stations = []
+        ns = "http://www.etis.fskab.se/v1.0/ETISws"
+        for station in e.findall('.//{%s}Point' % ns):
             s = Station()
             s.name = station.find('.//{%s}Name' % ns).text
             s.key = station.find('.//{%s}Id' % ns).text
