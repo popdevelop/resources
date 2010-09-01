@@ -92,7 +92,7 @@ class NearestStationsHandler(BaseHandler):
         if "callback" in self.args:
             json = "%s(%s)" % (self.args["callback"], json)
         self.set_header("Content-Length", len(json))
-        self.set_header("Content-Type", "text/javascript")
+        self.set_header("Content-Type", "application/json")
         self.write(json)
         self.finish()
 
