@@ -56,12 +56,24 @@ class MainHandler(BaseHandler):
         self.render("index.html", messages=MessageMixin.cache)
 
 
-class NearestStationsHandler(BaseHandler):
+class APIHandler(BaseHandler):
+    def finish_json(self, objects):
+        json = tornado.escape.json_encode(objects)
+        if "callback" in self.args:
+            json = "%s(%s)" % (self.args["callback"], json)
+        self.set_header("Content-Length", len(json))
+        self.set_header("Content-Type", "application/json")
+        self.write(json)
+        self.finish()
+
+
+class NearestStationsHandler(APIHandler):
     @tornado.web.authenticated
     @tornado.web.asynchronous
     def get(self):
         self.args = dict(zip(self.request.arguments.keys(),
-                             map(lambda a: a[0], self.request.arguments.values())))
+                             map(lambda a: a[0],
+                                 self.request.arguments.values())))
         client = tornado.httpclient.AsyncHTTPClient()
         (x, y) = util.WGS84_to_RT90(float(self.args["lat"]), float(self.args["lon"]))
         client.fetch("http://www.labs.skanetrafiken.se/v2.2/"
@@ -87,24 +99,20 @@ class NearestStationsHandler(BaseHandler):
             (s.lat, s.lon) = util.RT90_to_WGS84(X, Y)
             stations.append(s)
 
-        stops = [model_to_dict(s) for s in stations]
-        json = tornado.escape.json_encode(stops)
-        if "callback" in self.args:
-            json = "%s(%s)" % (self.args["callback"], json)
-        self.set_header("Content-Length", len(json))
-        self.set_header("Content-Type", "application/json")
-        self.write(json)
-        self.finish()
+        stations = [model_to_dict(s) for s in stations]
+        self.finish_json(stations)
 
 
-class QueryStationHandler(BaseHandler):
+class QueryStationHandler(APIHandler):
     @tornado.web.authenticated
     @tornado.web.asynchronous
     def get(self):
         self.args = dict(zip(self.request.arguments.keys(),
-                             map(lambda a: a[0], self.request.arguments.values())))
+                             map(lambda a: a[0],
+                                 self.request.arguments.values())))
         client = tornado.httpclient.AsyncHTTPClient()
-        client.fetch("http://www.labs.skanetrafiken.se/v2.2/querystation.asp?inpPointfr=%s" % self.args["q"],
+        client.fetch("http://www.labs.skanetrafiken.se/v2.2/"
+                     "querystation.asp?inpPointfr=%s" % self.args["q"],
                      callback=self.async_callback(self.on_response))
 
     def on_response(self, response):
@@ -126,14 +134,8 @@ class QueryStationHandler(BaseHandler):
             (s.lat, s.lon) = util.RT90_to_WGS84(X, Y)
             stations.append(s)
 
-        stops = [model_to_dict(s) for s in stations]
-        json = tornado.escape.json_encode(stops)
-        if "callback" in self.args:
-            json = "%s(%s)" % (self.args["callback"], json)
-        self.set_header("Content-Length", len(json))
-        self.set_header("Content-Type", "application/json")
-        self.write(json)
-        self.finish()
+        stations = [model_to_dict(s) for s in stations]
+        self.finish_json(stations)
 
 
 class MessageMixin(object):
