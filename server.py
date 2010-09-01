@@ -125,7 +125,7 @@ class QueryStationHandler(APIHandler):
 
         stations = []
         ns = "http://www.etis.fskab.se/v1.0/ETISws"
-        for station in e.findall('.//{%s}Point' % ns):
+        for station in e.findall('.//{%s}StartPoints//{%s}Point' % (ns, ns)):
             s = Station()
             s.name = station.find('.//{%s}Name' % ns).text
             s.key = station.find('.//{%s}Id' % ns).text
