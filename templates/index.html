@@ -2,51 +2,7 @@
 <html>
 <head>
 <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
-<style type="text/css">
-  html { height: 100% }
-  body { 
-      padding: 0px;
-      width: 960px;
-      height: 480px;
-      margin: 20px auto;
-      font-family: helvetica, arial, sans-serif;
-  }
-  form#search {
-      padding: 30px 0;
-  }
-  form input#search {
-      padding: 5px;
-      font-size: 24px;      
-  }
-  ul#stops li {
-      display: inline-block;
-      margin: 2px;
-      padding: 3px 6px;
-      border: 1px solid #CCC;
-      font-size: 11px;
-      cursor: pointer;
-      color: #999;
-  }
-  ul#stops li:hover {
-      background-color: #eee;
-      color: #000;
-  }
-  #timetable table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 11px;
-  }
-
-  #timetable table td{
-      padding: 1px 5px;
-      border-bottom: 1px solid #ddd;
-  }
-
-  #map_canvas { 
-      height: 100%;
-      weight: 100%;
-  }
-</style>
+<link type="text/css" rel="stylesheet" href="{{ static_url("css/style.css") }}">
 
 <script type="text/html" id="stopItem">
     <li>
