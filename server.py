@@ -1,5 +1,5 @@
-#!/usr/bin/env python
-
+import os
+os.environ['DJANGO_SETTINGS_MODULE'] = 'settings'
 from django.forms.models import model_to_dict
 from models import Station
 from models import Line
