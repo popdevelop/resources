@@ -53,7 +53,7 @@ class BaseHandler(tornado.web.RequestHandler):
 
 
 class MainHandler(BaseHandler):
-    @tornado.web.authenticated
+#    @tornado.web.authenticated
     def get(self):
         self.render("index.html", messages=MessageMixin.cache)
 
@@ -70,7 +70,7 @@ class APIHandler(BaseHandler):
 
 
 class NearestStationsHandler(APIHandler):
-    @tornado.web.authenticated
+#    @tornado.web.authenticated
     @tornado.web.asynchronous
     def get(self):
         self.args = dict(zip(self.request.arguments.keys(),
@@ -106,7 +106,7 @@ class NearestStationsHandler(APIHandler):
 
 
 class QueryStationHandler(APIHandler):
-    @tornado.web.authenticated
+#    @tornado.web.authenticated
     @tornado.web.asynchronous
     def get(self):
         self.args = dict(zip(self.request.arguments.keys(),
@@ -140,7 +140,7 @@ class QueryStationHandler(APIHandler):
         self.finish_json(stations)
 
 class StationResultsHandler(APIHandler):
-    @tornado.web.authenticated
+#    @tornado.web.authenticated
     @tornado.web.asynchronous
     def get(self):
         self.args = dict(zip(self.request.arguments.keys(),
@@ -205,7 +205,7 @@ class MessageMixin(object):
 
 
 class MessageNewHandler(BaseHandler, MessageMixin):
-    @tornado.web.authenticated
+#    @tornado.web.authenticated
     def post(self):
         message = {
             "id": str(uuid.uuid4()),
@@ -221,7 +221,7 @@ class MessageNewHandler(BaseHandler, MessageMixin):
 
 
 class MessageUpdatesHandler(BaseHandler, MessageMixin):
-    @tornado.web.authenticated
+#    @tornado.web.authenticated
     @tornado.web.asynchronous
     def post(self):
         cursor = self.get_argument("cursor", None)
