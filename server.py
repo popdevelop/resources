@@ -53,9 +53,9 @@ class BaseHandler(tornado.web.RequestHandler):
 
 
 class MainHandler(BaseHandler):
-#    @tornado.web.authenticated
+    @tornado.web.authenticated
     def get(self):
-        self.render("index.html", messages=MessageMixin.cache)
+        self.render("index.html")
 
 
 class APIHandler(BaseHandler):
