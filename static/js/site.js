@@ -191,7 +191,7 @@ $(document).ready(function() {
 
     $("#search").bind("keyup", function() {
         clearTimeout(timer);
-        timer = setTimeout(Search.send, 500);
+        timer = setTimeout(Search.send, 300);
     });
 
     $("#searchform").submit(function(e) {
