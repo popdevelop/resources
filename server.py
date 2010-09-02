@@ -59,8 +59,27 @@ class MainHandler(BaseHandler):
 
 
 class APIHandler(BaseHandler):
-    def finish_json(self, objects):
-        json = tornado.escape.json_encode(objects)
+#    @tornado.web.authenticated
+    @tornado.web.asynchronous
+    def get(self):
+        self.args = dict(zip(self.request.arguments.keys(),
+                             map(lambda a: a[0],
+                                 self.request.arguments.values())))
+        client = tornado.httpclient.AsyncHTTPClient()
+        command = self.build_command(self.args)
+        if not command: raise tornado.web.HTTPError(204)
+        print command
+        client.fetch(command, callback=self.async_callback(self.on_response))
+
+    def on_response(self, response):
+        if response.error: raise tornado.web.HTTPError(500)
+
+        try:
+            tree = ET.XML(response.body)
+        except Exception as e:
+            raise tornado.web.HTTPError(500)
+
+        json = tornado.escape.json_encode(self.handle_result(tree))
         if "callback" in self.args:
             json = "%s(%s)" % (self.args["callback"], json)
         self.set_header("Content-Length", len(json))
@@ -68,31 +87,24 @@ class APIHandler(BaseHandler):
         self.write(json)
         self.finish()
 
+    def build_command(self, args):
+        return None
+
+    def handle_result(self, tree):
+        return []
+
 
 class NearestStationsHandler(APIHandler):
-#    @tornado.web.authenticated
-    @tornado.web.asynchronous
-    def get(self):
-        self.args = dict(zip(self.request.arguments.keys(),
-                             map(lambda a: a[0],
-                                 self.request.arguments.values())))
-        client = tornado.httpclient.AsyncHTTPClient()
-        (x, y) = util.WGS84_to_RT90(float(self.args["lat"]), float(self.args["lon"]))
-        client.fetch("http://www.labs.skanetrafiken.se/v2.2/"
-                     "neareststation.asp?x=%s&y=%s&R=1000" % (x, y),
-                     callback=self.async_callback(self.on_response))
+    def build_command(self, args):
+        (x, y) = util.WGS84_to_RT90(float(args["lat"]),
+                                    float(args["lon"]))
+        return "http://www.labs.skanetrafiken.se/v2.2/" \
+            "neareststation.asp?x=%s&y=%s&R=1000" % (x, y)
 
-    def on_response(self, response):
-        if response.error: raise tornado.web.HTTPError(500)
-
-        try:
-            e = ET.XML(response.body)
-        except Exception as e:
-            raise tornado.web.HTTPError(500)
-
+    def handle_result(self, tree):
         stations = []
         ns = "http://www.etis.fskab.se/v1.0/ETISws"
-        for station in e.find('.//{%s}NearestStopAreas' % ns):
+        for station in tree.find('.//{%s}NearestStopAreas' % ns):
             s = Station()
             s.name = station.find('.//{%s}Name' % ns).text
             s.key = station.find('.//{%s}Id' % ns).text
@@ -100,34 +112,18 @@ class NearestStationsHandler(APIHandler):
             Y = int(station.find('.//{%s}Y' % ns).text)
             (s.lat, s.lon) = util.RT90_to_WGS84(X, Y)
             stations.append(s)
-
-        stations = [model_to_dict(s) for s in stations]
-        self.finish_json(stations)
+        return [model_to_dict(s) for s in stations]
 
 
 class QueryStationHandler(APIHandler):
-#    @tornado.web.authenticated
-    @tornado.web.asynchronous
-    def get(self):
-        self.args = dict(zip(self.request.arguments.keys(),
-                             map(lambda a: a[0],
-                                 self.request.arguments.values())))
-        client = tornado.httpclient.AsyncHTTPClient()
-        client.fetch("http://www.labs.skanetrafiken.se/v2.2/"
-                     "querystation.asp?inpPointfr=%s" % self.args["q"],
-                     callback=self.async_callback(self.on_response))
+    def build_command(self, args):
+        return "http://www.labs.skanetrafiken.se/v2.2/" \
+            "querystation.asp?inpPointfr=%s" % args["q"]
 
-    def on_response(self, response):
-        if response.error: raise tornado.web.HTTPError(500)
-
-        try:
-            e = ET.XML(response.body)
-        except Exception as e:
-            raise tornado.web.HTTPError(500)
-
+    def handle_result(self, tree):
         stations = []
         ns = "http://www.etis.fskab.se/v1.0/ETISws"
-        for station in e.findall('.//{%s}StartPoints//{%s}Point' % (ns, ns)):
+        for station in tree.findall('.//{%s}StartPoints//{%s}Point' % (ns, ns)):
             s = Station()
             s.name = station.find('.//{%s}Name' % ns).text
             s.key = station.find('.//{%s}Id' % ns).text
@@ -136,32 +132,18 @@ class QueryStationHandler(APIHandler):
             (s.lat, s.lon) = util.RT90_to_WGS84(X, Y)
             stations.append(s)
 
-        stations = [model_to_dict(s) for s in stations]
-        self.finish_json(stations)
+        return [model_to_dict(s) for s in stations]
+
 
 class StationResultsHandler(APIHandler):
-#    @tornado.web.authenticated
-    @tornado.web.asynchronous
-    def get(self):
-        self.args = dict(zip(self.request.arguments.keys(),
-                             map(lambda a: a[0],
-                                 self.request.arguments.values())))
-        client = tornado.httpclient.AsyncHTTPClient()
-        client.fetch("http://www.labs.skanetrafiken.se/v2.2/"
-                     "stationresults.asp?selPointFrKey=%s" % self.args["s"],
-                     callback=self.async_callback(self.on_response))
+    def build_command(self, args):
+        return "http://www.labs.skanetrafiken.se/v2.2/" \
+            "stationresults.asp?selPointFrKey=%s" % args["s"]
 
-    def on_response(self, response):
-        if response.error: raise tornado.web.HTTPError(500)
-
-        try:
-            e = ET.XML(response.body)
-        except Exception as e:
-            raise tornado.web.HTTPError(500)
-
+    def handle_result(self, tree):
         lines = []
         ns = "http://www.etis.fskab.se/v1.0/ETISws"
-        for line in e.findall('.//{%s}Lines//{%s}Line' % (ns, ns)):
+        for line in tree.findall('.//{%s}Lines//{%s}Line' % (ns, ns)):
             l = Line()
             l.name = line.find('.//{%s}Name' % ns).text
             l.time = line.find('.//{%s}JourneyDateTime' % ns).text
@@ -169,8 +151,8 @@ class StationResultsHandler(APIHandler):
             l.towards = line.find('.//{%s}Towards' % ns).text
             lines.append(l)
 
-        lines = [model_to_dict(l) for l in lines]
-        self.finish_json(lines)
+        return [model_to_dict(l) for l in lines]
+
 
 class MessageMixin(object):
     waiters = []
