@@ -28,8 +28,18 @@
       color: #999;
   }
   ul#stops li:hover {
-      background-color: #EEE;
+      background-color: #eee;
       color: #000;
+  }
+  #timetable table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+  }
+
+  #timetable table td{
+      padding: 1px 5px;
+      border-bottom: 1px solid #ddd;
   }
 
   #map_canvas { 
@@ -43,6 +53,16 @@
         ${name}
     </li>
 </script>
+<script type="text/html" id="lineItem">
+    <tr>
+        <td>${time}</td>
+        <td>${time.ts2rel()}</td>
+        <td>${type} ${name}</td>
+        <td>${towards}</td>
+    </tr>
+</script>
+
+
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script> 
 <script type="text/javascript" src="js/jquery.jsonp.min.js"></script>
 <script type="text/javascript" src="js/jquery.tmpl.js"></script>
@@ -51,18 +71,43 @@
 </script>
 <script type="text/javascript">
 
+String.prototype.ts2rel = function() {
+    var d = new Date(this).getTime();
+    var now = new Date().getTime();
+    var diff = (d - now)/1000;
+    if(diff < 60) {
+        return "now";
+    }
+    return Math.floor(diff / 60) + " min";
+};
+
 var Config =  {
     server: 'http://localhost:8888',
 };
 
 var Cmd = {
+    send: function(cmd, params) {
+        if( !(cmd in API) ) {
+            throw("[API] Invalid command");
+        }
+        if( typeof(params) != 'object') {
+            throw("[API] Invalid parameters");
+        }
+        params.url = Config.server + "/" + API[cmd];
+        $.jsonp(params);
+    }
+};
+
+var API = {
     getStops: 'neareststations',
-    searchStops: 'querystation'
+    searchStops: 'querystation',
+    stationResult: 'stationresults'
 };
 
 var GMap = {
     $canvas: false,
     _options: {
+        scrollwheel: false,
         zoom: 14,
         mapTypeId: google.maps.MapTypeId.ROADMAP,
         lat: -34.397,
@@ -120,6 +165,9 @@ var GMap = {
         GMap.map.setCenter(GMap._bounds.getCenter());
     },
     displayInfo: function(marker_id, info) {
+        if(GMap._info) {
+            GMap._info.close();
+        }
         marker = GMap._markers[marker_id];
         if(!marker) {
             throw("[GMap displayInfo] Invalid marker");
@@ -135,33 +183,69 @@ var GMap = {
 
 var Search = {
     _lastQry: "",
-    $field: false,
+    //Objects
+    $canvas: false,
+    $input: false,
+    $results: false,
     init: function(search_id) {
-        Search.$field = $(search_id);
-        if(!Search.$field) {
-            throw("[Search init] Input field not found");
+        Search.$canvas = $(search_id);
+        if(!Search.$canvas) {
+            throw("[Search init] Failed to init search");
         }
+        // Create UI
+        Search.$input = $('<input>')
+            .attr('id', 'search')
+            .attr('type', 'text');
+        Search.$results = $('<ul>')
+            .attr('id', 'stops');
+        $('<form>')
+            .attr('id', 'searchform')
+            .append(Search.$input)
+            .appendTo(Search.$canvas);
+        Search.$canvas.append(Search.$results);
     },
     send: function() {
-        var qry = escape(Search.$field.val());
+        var qry = escape(Search.$input.val());
         if(qry.length < 3 || qry == Search._lastQry) return;
         Search._lastQry = qry;
-        $.jsonp({
-            url: Config.server + "/" + Cmd.searchStops,
+        Cmd.send('searchStops', {
             data: {q: qry},
-            success: function(json) {
-                $("#stops").html($('#stopItem').tmpl(json)) ;
-                GMap.addMarkers(json);
-                GMap.set(json[0]);
-                GMap.autoZoom();
-            },
-            callbackParameter: 'callback',
-            timeout: 5000
+            success: Search.display,
+            callbackParameter: 'callback'
         });
     },
     clear: function() {
-        $("#search").val('');
-        $("#stops").empty();
+        Search.$input.val('');
+        Search.$results.empty();
+    },
+    display: function(json) {
+        Search.$results.html($('#stopItem').tmpl(json)) ;
+        GMap.addMarkers(json);
+        GMap.set(json[0]);
+        GMap.autoZoom();
+    }
+};
+
+var TimeTable = {
+    $canvas: false,
+    $result: false,
+    init: function(tbl_id) {
+        TimeTable.$canvas = $(tbl_id);
+        if(!TimeTable.$canvas) {
+            throw("[TimeTable init] Failed to init");
+        }
+        TimeTable.$result = $('<table>');
+        TimeTable.$canvas.append(TimeTable.$result);
+    },
+    fetch: function(station_id) {
+        Cmd.send('stationResult', {
+            data: {s: station_id},
+            success: TimeTable.display,
+            callbackParameter: 'callback'
+        });
+    },
+    display: function(json) {
+        TimeTable.$result.html($('#lineItem').tmpl(json));
     }
 };
 
@@ -170,10 +254,12 @@ var timer = false;
 $(document).ready(function() {
     GMap.init('#map_canvas');
     Search.init('#search');
+    TimeTable.init('#timetable');
     $("#stops li").live("click", function(e) {
         var item = $.tmplItem(e.target);
         GMap.set({lat: item.data.lat, lon: item.data.lon, zoom: 15});
         GMap.displayInfo(item.data.key, item.data.name)
+        TimeTable.fetch(item.data.key);
     });
 
     $("#search").bind("keyup", function() {
@@ -190,11 +276,10 @@ $(document).ready(function() {
 </script>
 </head>
 <body>
-  <form id="searchform">
-    <input type="text" id="search"> 
-  </form>
-  <ul id="stops">
-  </ul>
+  <div id="search">
+  </div>
   <div id="map_canvas"></div>
+  <div id="timetable">
+  </div>
 </body>
 </html>
