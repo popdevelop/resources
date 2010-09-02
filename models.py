@@ -15,3 +15,15 @@ class Station(models.Model):
     class Meta:
         db_table = 'stations'
         app_label = "popdemocracy"
+
+
+class Line(models.Model):
+    name = models.CharField()
+    time = models.CharField();
+    type = models.CharField();
+    towards = models.CharField()
+
+    def __unicode__(self):
+        return "%s [%s]" % (self.name, self.time)
+    class Meta:
+        app_label = "popdemocracy"

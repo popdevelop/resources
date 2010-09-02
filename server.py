@@ -2,6 +2,7 @@
 
 from django.forms.models import model_to_dict
 from models import Station
+from models import Line
 import database
 import logging
 import os.path
@@ -30,6 +31,7 @@ class Application(tornado.web.Application):
             (r"/a/message/updates", MessageUpdatesHandler),
             (r"/neareststations", NearestStationsHandler),
             (r"/querystation", QueryStationHandler),
+            (r"/stationresults", StationResultsHandler)
         ]
         settings = dict(
             cookie_secret="61oETzKXnQAGaYdkL5gEmGeJJFuYh7EQnp2XdTP1o/Vo=",
@@ -137,6 +139,38 @@ class QueryStationHandler(APIHandler):
         stations = [model_to_dict(s) for s in stations]
         self.finish_json(stations)
 
+class StationResultsHandler(APIHandler):
+    @tornado.web.authenticated
+    @tornado.web.asynchronous
+    def get(self):
+        self.args = dict(zip(self.request.arguments.keys(),
+                             map(lambda a: a[0],
+                                 self.request.arguments.values())))
+        client = tornado.httpclient.AsyncHTTPClient()
+        client.fetch("http://www.labs.skanetrafiken.se/v2.2/"
+                     "stationresults.asp?selPointFrKey=%s" % self.args["s"],
+                     callback=self.async_callback(self.on_response))
+
+    def on_response(self, response):
+        if response.error: raise tornado.web.HTTPError(500)
+
+        try:
+            e = ET.XML(response.body)
+        except Exception as e:
+            raise tornado.web.HTTPError(500)
+
+        lines = []
+        ns = "http://www.etis.fskab.se/v1.0/ETISws"
+        for line in e.findall('.//{%s}Lines//{%s}Line' % (ns, ns)):
+            l = Line()
+            l.name = line.find('.//{%s}Name' % ns).text
+            l.time = line.find('.//{%s}JourneyDateTime' % ns).text
+            l.type = line.find('.//{%s}LineTypeName' % ns).text
+            l.towards = line.find('.//{%s}Towards' % ns).text
+            lines.append(l)
+
+        lines = [model_to_dict(l) for l in lines]
+        self.finish_json(lines)
 
 class MessageMixin(object):
     waiters = []
