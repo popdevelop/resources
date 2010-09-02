@@ -25,7 +25,13 @@
       border: 1px solid #CCC;
       font-size: 11px;
       cursor: pointer;
+      color: #999;
   }
+  ul#stops li:hover {
+      background-color: #EEE;
+      color: #000;
+  }
+
   #map_canvas { 
       height: 100%;
       weight: 100%;
@@ -56,67 +62,90 @@ var Cmd = {
 
 var GMap = {
     $canvas: false,
-    options: {
+    _options: {
         zoom: 14,
         mapTypeId: google.maps.MapTypeId.ROADMAP,
         lat: -34.397,
         lon: 150.644
     },
-    markers: [],
-    bounds: false,
-    init: function() {
-        GMap.$canvas = $('#map_canvas');
+    _markers: [],
+    _bounds: false,
+    _info: false,
+    init: function(map_id) {
+        GMap.$canvas = $(map_id);
         if(!GMap.$canvas) {
             throw("[GMap init] Canvas not found");
         }
-        GMap.options.center = new google.maps.LatLng(GMap.options.lat, GMap.options.lon);
-        GMap.map = new google.maps.Map(GMap.$canvas.get(0), GMap.options);
+        GMap._options.center = new google.maps.LatLng(GMap._options.lat, GMap._options.lon);
+        GMap.map = new google.maps.Map(GMap.$canvas.get(0), GMap._options);
     },
     set: function(options) {
         if(typeof(options) != 'object') {
             throw("[GMap set] Invalid options");
         }
-        $.extend(GMap.options, options);
-        GMap.options.center = new google.maps.LatLng(GMap.options.lat, GMap.options.lon);
-        GMap.map.setCenter(GMap.options.center);
-        GMap.map.setZoom(GMap.options.zoom);
+        $.extend(GMap._options, options);
+        GMap._options.center = new google.maps.LatLng(GMap._options.lat, GMap._options.lon);
+        GMap.map.setCenter(GMap._options.center);
+        GMap.map.setZoom(GMap._options.zoom);
     },
     addMarkers: function(positions) {
         GMap.clearMarkers();
-        GMap.bounds = new google.maps.LatLngBounds();
+        GMap._bounds = new google.maps.LatLngBounds();
         for(var i in positions) {
             var p = positions[i];
             var lonlat = new google.maps.LatLng(p.lat, p.lon);
-            GMap.markers[i] = new google.maps.Marker({
+            GMap._markers[p.key] = new google.maps.Marker({
                 position: lonlat, 
                 map: GMap.map, 
                 title: p.name
             });
-            GMap.bounds.extend(lonlat);
-            /*google.maps.event.addListener(GMap.markers[idx], "click", function() {
+            GMap._bounds.extend(lonlat);
+            /*google.maps.event.addListener(GMap._markers[p.key], "click", function() {
                 alert("hej");
             });*/
         }
     },
     clearMarkers: function() {
-        for (var i in GMap.markers) {
-            GMap.markers[i].setMap(null);
+        if(GMap._info) {
+            GMap._info.close();
         }
-        GMap.markers.length = 0;
+        for (var i in GMap._markers) {
+            GMap._markers[i].setMap(null);
+        }
+        GMap._markers.length = 0;
     },
     autoZoom: function() {
         var bounds = new google.maps.LatLngBounds();
-        GMap.map.fitBounds(GMap.bounds);
-        GMap.map.setCenter(GMap.bounds.getCenter());
+        GMap.map.fitBounds(GMap._bounds);
+        GMap.map.setCenter(GMap._bounds.getCenter());
+    },
+    displayInfo: function(marker_id, info) {
+        marker = GMap._markers[marker_id];
+        if(!marker) {
+            throw("[GMap displayInfo] Invalid marker");
+        }
+        GMap._info = new google.maps.InfoWindow(
+        {
+            content: info,
+            position: marker.position
+        });
+        GMap._info.open(GMap.map);
     }
 };
 
 var Search = {
-    lastQry: "",
+    _lastQry: "",
+    $field: false,
+    init: function(search_id) {
+        Search.$field = $(search_id);
+        if(!Search.$field) {
+            throw("[Search init] Input field not found");
+        }
+    },
     send: function() {
-        var qry = escape($("#search").val());
-        if(qry.length < 3 || qry == Search.lastQry) return;
-        Search.lastQry = qry;
+        var qry = escape(Search.$field.val());
+        if(qry.length < 3 || qry == Search._lastQry) return;
+        Search._lastQry = qry;
         $.jsonp({
             url: Config.server + "/" + Cmd.searchStops,
             data: {q: qry},
@@ -139,10 +168,12 @@ var Search = {
 var timer = false;
 
 $(document).ready(function() {
-    GMap.init();
+    GMap.init('#map_canvas');
+    Search.init('#search');
     $("#stops li").live("click", function(e) {
         var item = $.tmplItem(e.target);
         GMap.set({lat: item.data.lat, lon: item.data.lon, zoom: 15});
+        GMap.displayInfo(item.data.key, item.data.name)
     });
 
     $("#search").bind("keyup", function() {
