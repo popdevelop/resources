@@ -108,50 +108,82 @@ var GMap = {
     }
 };
 
-var Search = {
-    _lastQry: "",
+function Search(form_id) {
+    var self = this;
+    self._lastQry = "";
+    self._selectedStation = false;
     //Objects
-    $canvas: false,
-    $input: false,
-    $results: false,
-    init: function(search_id) {
-        Search.$canvas = $(search_id);
-        if(!Search.$canvas) {
-            throw("[Search init] Failed to init search");
+    self.$form    = false;
+    self.$input   = false;
+    self.$results = false;
+    // Initxs
+    self.$form = $(form_id);
+    self.$input = $("input", self.$form);
+    if(!self.$form || !self.$input) {
+        throw("[Search init] Failed to init search");
+    }
+    
+    // Create results area
+    self.$results = $('<ul>')
+        .hide()
+        .addClass('results')
+        .attr('id', form_id + '_results')
+        .appendTo(self.$form);
+    
+    // Form actions
+    self.$input.bind("keyup", function() {
+        clearTimeout(timer);
+        timer = setTimeout(self.send, 300);
+    });
+    //self.$input.bind("blur", function() { self.$results.hide(); })
+
+    self.$form.submit(function(e) {
+        e.preventDefault();
+        return false;
+    });
+
+    // ------ Methods ------
+    self.send = function() {
+        var qry = escape(self.$input.val());
+        if(qry.length < 3 || qry == self._lastQry) {
+            self.$results.hide();
+            return;
         }
-        // Create UI
-        Search.$input = $('<input>')
-            .attr('id', 'search')
-            .attr('type', 'text');
-        Search.$results = $('<ul>')
-            .attr('id', 'stops');
-        $('<form>')
-            .attr('id', 'searchform')
-            .append(Search.$input)
-            .appendTo(Search.$canvas);
-        Search.$canvas.append(Search.$results);
-    },
-    send: function() {
-        var qry = escape(Search.$input.val());
-        if(qry.length < 3 || qry == Search._lastQry) return;
-        Search._lastQry = qry;
+        self._lastQry = qry;
+        self.$results.show();
         Cmd.send('searchStops', {
             data: {q: qry},
-            success: Search.display,
+            success: self.display,
             callbackParameter: 'callback'
         });
-    },
-    clear: function() {
-        Search.$input.val('');
-        Search.$results.empty();
-    },
-    display: function(json) {
-        Search.$results.html($('#stopItem').tmpl(json)) ;
+    };
+    self.clear = function() {
+        self.$input.val('');
+        self.$results.hide().empty();
+    };
+
+    self.display = function(json) {
+        self.$results.html($('#stopItem').tmpl(json));
+        $("li", self.$results).click(function(e) {
+            var item = $.tmplItem(e.target);
+            GMap.set({lat: item.data.lat, lon: item.data.lon, zoom: 15});
+            try {
+                GMap.displayInfo(item.data.key, item.data.name)
+            } catch (e) {}
+            TimeTable.fetch(item.data.key);
+
+            self.$input.val(item.data.name);
+            self._selectedStation = item.data;
+            self.$results.hide();
+        });
+
         GMap.addMarkers(json);
         GMap.set(json[0]);
         GMap.autoZoom();
-    }
+    };
 };
+
+
 
 var TimeTable = {
     $canvas: false,
@@ -180,22 +212,7 @@ var timer = false;
 
 $(document).ready(function() {
     GMap.init('#map_canvas');
-    Search.init('#search');
+    new Search('#form_from');
+    new Search('#form_to');
     TimeTable.init('#timetable');
-    $("#stops li").live("click", function(e) {
-        var item = $.tmplItem(e.target);
-        GMap.set({lat: item.data.lat, lon: item.data.lon, zoom: 15});
-        GMap.displayInfo(item.data.key, item.data.name)
-        TimeTable.fetch(item.data.key);
-    });
-
-    $("#search").bind("keyup", function() {
-        clearTimeout(timer);
-        timer = setTimeout(Search.send, 300);
-    });
-
-    $("#searchform").submit(function(e) {
-        e.preventDefault();
-        return false;
-    });
 });

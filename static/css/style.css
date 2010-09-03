@@ -2,27 +2,41 @@ html { height: 100% }
 body { 
     padding: 0px;
     width: 960px;
-    height: 480px;
     margin: 20px auto;
     font-family: helvetica, arial, sans-serif;
 }
-form#search {
+form  {
     padding: 30px 0;
-}
-form input#search {
-    padding: 5px;
-    font-size: 24px;      
-}
-ul#stops li {
+    margin: 0;
     display: inline-block;
+    width: 460px;
+}
+form input  {
+    padding: 5px;
+    font-size: 24px;
+    width: 350px;
+}
+form {
+    position: relative;
+}
+ul.results {
+    z-index: 300;
+    background-color: #FFF;
+    position: absolute;
+    margin: 0;
+    padding: 6px;
+    width: 350px;
+}
+ul.results li {
+    list-style-type: none;
     margin: 2px;
     padding: 3px 6px;
-    border: 1px solid #CCC;
+    border-bottom: 1px solid #CCC;
     font-size: 11px;
     cursor: pointer;
     color: #999;
 }
-ul#stops li:hover {
+ul.results li:hover {
     background-color: #eee;
     color: #000;
 }
@@ -38,6 +52,6 @@ ul#stops li:hover {
 }
 
 #map_canvas { 
-    height: 100%;
-    weight: 100%;
+    width: 960px;
+    height: 480px;
 }
