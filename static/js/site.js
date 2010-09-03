@@ -61,7 +61,6 @@ var GMap = {
         GMap.map.setZoom(GMap._options.zoom);
     },
     addMarkers: function(positions) {
-        GMap.clearMarkers();
         GMap._bounds = new google.maps.LatLngBounds();
         for(var i in positions) {
             var p = positions[i];
@@ -166,20 +165,14 @@ function Search(form_id) {
         self.$results.html($('#stopItem').tmpl(json));
         $("li", self.$results).click(function(e) {
             var item = $.tmplItem(e.target);
-            GMap.set({lat: item.data.lat, lon: item.data.lon, zoom: 15});
-            try {
-                GMap.displayInfo(item.data.key, item.data.name)
-            } catch (e) {}
+            //GMap.set({lat: item.data.lat, lon: item.data.lon, zoom: 15});
             TimeTable.fetch(item.data.key);
 
             self.$input.val(item.data.name);
             self._selectedStation = item.data;
             self.$results.hide();
+            $(document).trigger("search.setStation");
         });
-
-        GMap.addMarkers(json);
-        GMap.set(json[0]);
-        GMap.autoZoom();
     };
 };
 
@@ -208,11 +201,41 @@ var TimeTable = {
     }
 };
 
+var Route = {
+    _from: false,
+    _to: false,
+    _path: false,
+    init: function() {
+        Route._from = new Search('#form_from');
+        Route._to = new Search('#form_to');
+        
+        $(document).bind("search.setStation", Route.display)
+    },
+    display: function(points) {
+        console.log("draw");
+        var from = Route._from._selectedStation;
+        var to   = Route._to._selectedStation
+        if(from && to) {
+            if(Route._path) {
+                //XXX: howto remove line?
+                //Route._path.removeAt();
+            }
+            var coords = [];
+            coords.push(new google.maps.LatLng(from.lat, from.lon));
+            coords.push(new google.maps.LatLng(to.lat, to.lon));
+            Route._path = new google.maps.Polyline({path: coords});
+            Route._path.setMap(GMap.map);
+            GMap.clearMarkers();
+            GMap.addMarkers([from, to]);
+            GMap.autoZoom();
+        }
+    }
+};
+
 var timer = false;
 
 $(document).ready(function() {
     GMap.init('#map_canvas');
-    new Search('#form_from');
-    new Search('#form_to');
+    Route.init();
     TimeTable.init('#timetable');
 });
